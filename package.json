@@ -21,7 +21,8 @@
   },
   "dependencies": {
     "@google-cloud/dialogflow-cx": "^3.4.1",
-    "@voiceflow/base-types": "^2.81.6",
-    "@voiceflow/voiceflow-types": "^3.23.17"
+    "@voiceflow/base-types": "2.81.6",
+    "@voiceflow/common": "8.2.0",
+    "@voiceflow/voiceflow-types": "3.23.17"
   }
 }

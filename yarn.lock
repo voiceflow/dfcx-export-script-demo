@@ -488,7 +488,7 @@
     "@typescript-eslint/types" "5.58.0"
     eslint-visitor-keys "^3.3.0"
 
-"@voiceflow/base-types@^2.81.6":
+"@voiceflow/base-types@2.81.6", "@voiceflow/base-types@^2.81.6":
   version "2.81.6"
   resolved "https://registry.yarnpkg.com/@voiceflow/base-types/-/base-types-2.81.6.tgz#ee4c150100e150cd1ee2d4253912b5d9dc9f47f2"
   integrity sha512-+e7kwkGIEP0JmcawEDMKjk4wgUndg5e05ssoytV1HtA7IFPusBe0bFEb6TX7yNQwj4ywsR2y8RWPG7W18l3j7w==
@@ -504,7 +504,7 @@
     "@voiceflow/base-types" "^2.81.6"
     "@voiceflow/common" "^8.2.0"
 
-"@voiceflow/common@^8.2.0":
+"@voiceflow/common@8.2.0", "@voiceflow/common@^8.2.0":
   version "8.2.0"
   resolved "https://registry.yarnpkg.com/@voiceflow/common/-/common-8.2.0.tgz#ecfef04ebd4386b292bc11db40296c5f4ee67a40"
   integrity sha512-gg7qzfiy/+nilSl7mTHawlkcIkcR8CNDQpn4q3+eAo+VAFXFyp/3fwLVl0JsSD+FUCak0BdNPfkNdEY6h5IVIw==
@@ -572,7 +572,7 @@
     "@voiceflow/base-types" "^2.81.6"
     "@voiceflow/common" "^8.2.0"
 
-"@voiceflow/voiceflow-types@^3.23.17":
+"@voiceflow/voiceflow-types@3.23.17":
   version "3.23.17"
   resolved "https://registry.yarnpkg.com/@voiceflow/voiceflow-types/-/voiceflow-types-3.23.17.tgz#d90666877f6667a09c6ecfed79441236f1d4194a"
   integrity sha512-DJboroxHe3HV+xtj6omyhPGOLBw4cI4i+xSdzTIze0MH6DJjzprsiuEDPchnuH4aU3QRmKeA5OT6pYO7HO6LTw==
