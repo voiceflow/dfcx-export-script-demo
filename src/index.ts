@@ -7,7 +7,7 @@ import { VF_ENTITY_REGEXP } from '@voiceflow/common';
 import type { VoiceflowModels } from '@voiceflow/voiceflow-types';
 
 const PROJECT_NAME = process.env.PROJECT_NAME!;
-const KEYFILE = '/Users/benteichman/Downloads/df-demo-coffee-agent-yqsb-fec53be13bfa.json';
+const KEYFILE = process.env.KEYFILE!;
 const API_ENDPOINT = 'us-central1-dialogflow.googleapis.com';
 const TAG = 'vf';
 const INTENT_ID_LABEL = 'vf_intent_id';
