@@ -2,71 +2,19 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import type { protos } from '@google-cloud/dialogflow-cx';
-import { EntityTypesClient, IntentsClient } from '@google-cloud/dialogflow-cx';
-import { VF_ENTITY_REGEXP } from '@voiceflow/common';
+import { EntityTypesClient, IntentsClient, v3beta1 } from '@google-cloud/dialogflow-cx';
+import type { Slot } from '@voiceflow/base-types/build/cjs/models';
 import type { VoiceflowModels } from '@voiceflow/voiceflow-types';
 
-const PROJECT_NAME = process.env.PROJECT_NAME!;
-const KEYFILE = process.env.KEYFILE!;
-const API_ENDPOINT = 'us-central1-dialogflow.googleapis.com';
-const TAG = 'vf';
-const INTENT_ID_LABEL = 'vf_intent_id';
-const TAGGED_NAME_PATTERN = new RegExp(`^(.*)__([^-]*)-${TAG}$`);
+import { API_ENDPOINT, INTENT_ID_LABEL, KEYFILE, PROJECT_NAME } from './constants';
+import { buildTaggedName, extractEntities, parseTaggedName } from './utils';
 
-const buildTaggedName = (name: string, id: string) => `${name}__${id}-${TAG}`;
-
-const parseTaggedName = (fullName: string) => {
-  const match = fullName.match(TAGGED_NAME_PATTERN);
-  if (!match) return null;
-
-  const [, name, id] = match;
-  return { name, id };
-};
-
-const extractEntities = (utterance: string) => {
-  const pattern = new RegExp(VF_ENTITY_REGEXP);
-  const entities: Array<{ index: number; raw: string; name: string; id: string }> = [];
-
-  let match: RegExpExecArray | null = null;
-
-  // eslint-disable-next-line no-cond-assign
-  while ((match = pattern.exec(utterance))) {
-    const [raw, name, id] = match;
-    entities.unshift({ index: match.index, raw, name, id });
-  }
-
-  return entities;
-};
-
-async function main() {
-  // get first parameter from command line
-  const [, , ...args] = process.argv;
-
-  const readFilePath = args[0] || 'project.vf';
-  const { name: readFileName } = path.parse(readFilePath);
-
-  console.log(`Reading ${readFileName}`);
-
-  const content = JSON.parse(await fs.readFile(readFilePath, 'utf8')) as VoiceflowModels.VF;
-
-  const intentClient = new IntentsClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
-  const entityClient = new EntityTypesClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
-
-  const [remoteIntents] = await intentClient.listIntents({ parent: PROJECT_NAME });
-  const existingIntents = new Set(remoteIntents.flatMap((intent) => intent.labels?.[INTENT_ID_LABEL] ?? []));
-
-  const localEntities = Object.fromEntries(content.version.platformData.slots.map((entity) => [entity.key, entity]));
-  const [remoteEntities] = await entityClient.listEntityTypes({ parent: PROJECT_NAME });
-  const remoteEntityIDs: Record<string, string> = Object.fromEntries(
-    remoteEntities.flatMap((entity) => {
-      const parsed = parseTaggedName(entity.displayName ?? '');
-      if (!parsed) return [];
-
-      return [[parsed.id, entity.name!]];
-    })
-  );
-  const existingEntities = new Set(Object.keys(remoteEntityIDs));
-
+async function uploadEntities(
+  content: VoiceflowModels.VF,
+  existingEntities: Set<string>,
+  remoteEntityIDs: Record<string, string>,
+  entityClient: EntityTypesClient
+) {
   await Promise.all(
     content.version.platformData.slots.map(async (entity) => {
       if (existingEntities.has(entity.key)) {
@@ -88,10 +36,19 @@ async function main() {
         },
       });
 
+      // eslint-disable-next-line no-param-reassign
       remoteEntityIDs[entity.key] = created.name!;
     })
   );
+}
 
+async function uploadIntents(
+  content: VoiceflowModels.VF,
+  existingIntents: Set<string>,
+  localEntities: Record<string, Slot>,
+  remoteEntityIDs: Record<string, string>,
+  intentClient: IntentsClient
+) {
   await Promise.all(
     content.version.platformData.intents.map((intent) => {
       if (intent.name.startsWith('VF.')) return Promise.resolve();
@@ -154,6 +111,49 @@ async function main() {
       });
     })
   );
+}
+
+async function main() {
+  // get first parameter from command line
+  const [, , ...args] = process.argv;
+
+  const readFilePath = args[0] || 'project.vf';
+  const { name: readFileName } = path.parse(readFilePath);
+
+  console.log(`Reading ${readFileName}`);
+
+  const content = JSON.parse(await fs.readFile(readFilePath, 'utf8')) as VoiceflowModels.VF;
+
+  const intentClient = new IntentsClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
+  const entityClient = new EntityTypesClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
+  // const webhookClient = new WebhooksClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
+  // const webhookClient = new v3beta1.WebhooksClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
+  const environmentClient = new v3beta1.EnvironmentsClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
+
+  const [remoteIntents] = await intentClient.listIntents({ parent: PROJECT_NAME });
+  const existingIntents = new Set(remoteIntents.flatMap((intent) => intent.labels?.[INTENT_ID_LABEL] ?? []));
+
+  const localEntities = Object.fromEntries(content.version.platformData.slots.map((entity) => [entity.key, entity]));
+  const [remoteEntities] = await entityClient.listEntityTypes({ parent: PROJECT_NAME });
+  const remoteEntityIDs: Record<string, string> = Object.fromEntries(
+    remoteEntities.flatMap((entity) => {
+      const parsed = parseTaggedName(entity.displayName ?? '');
+      if (!parsed) return [];
+
+      return [[parsed.id, entity.name!]];
+    })
+  );
+  const existingEntities = new Set(Object.keys(remoteEntityIDs));
+
+  // const [remoteWebhooks] = await webhookClient.listWebhooks({ parent: PROJECT_NAME });
+  const [remoteEnvironments] = await environmentClient.listEnvironments({ parent: PROJECT_NAME });
+
+  if (false) {
+    await uploadEntities(content, existingEntities, remoteEntityIDs, entityClient);
+    await uploadIntents(content, existingIntents, localEntities, remoteEntityIDs, intentClient);
+  }
+
+  console.log(remoteEnvironments);
 }
 
 main();
