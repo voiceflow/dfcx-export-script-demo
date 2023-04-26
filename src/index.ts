@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import type { protos } from '@google-cloud/dialogflow-cx';
-import { EntityTypesClient, IntentsClient, v3beta1 } from '@google-cloud/dialogflow-cx';
+import { EntityTypesClient, IntentsClient } from '@google-cloud/dialogflow-cx';
 import type { Slot } from '@voiceflow/base-types/build/cjs/models';
 import type { VoiceflowModels } from '@voiceflow/voiceflow-types';
 
@@ -128,7 +128,7 @@ async function main() {
   const entityClient = new EntityTypesClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
   // const webhookClient = new WebhooksClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
   // const webhookClient = new v3beta1.WebhooksClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
-  const environmentClient = new v3beta1.EnvironmentsClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
+  // const environmentClient = new v3beta1.EnvironmentsClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
 
   const [remoteIntents] = await intentClient.listIntents({ parent: PROJECT_NAME });
   const existingIntents = new Set(remoteIntents.flatMap((intent) => intent.labels?.[INTENT_ID_LABEL] ?? []));
@@ -146,14 +146,14 @@ async function main() {
   const existingEntities = new Set(Object.keys(remoteEntityIDs));
 
   // const [remoteWebhooks] = await webhookClient.listWebhooks({ parent: PROJECT_NAME });
-  const [remoteEnvironments] = await environmentClient.listEnvironments({ parent: PROJECT_NAME });
+  // const [remoteEnvironments] = await environmentClient.listEnvironments({ parent: PROJECT_NAME });
 
-  if (false) {
-    await uploadEntities(content, existingEntities, remoteEntityIDs, entityClient);
-    await uploadIntents(content, existingIntents, localEntities, remoteEntityIDs, intentClient);
-  }
+  // if (false) {
+  await uploadEntities(content, existingEntities, remoteEntityIDs, entityClient);
+  await uploadIntents(content, existingIntents, localEntities, remoteEntityIDs, intentClient);
+  // }
 
-  console.log(remoteEnvironments);
+  // console.log(remoteEnvironments);
 }
 
 main();
