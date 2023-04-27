@@ -3,12 +3,15 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import type { protos } from '@google-cloud/dialogflow-cx';
-import { EntityTypesClient, IntentsClient } from '@google-cloud/dialogflow-cx';
+import { EntityTypesClient, IntentsClient, PagesClient } from '@google-cloud/dialogflow-cx';
 import type { Slot } from '@voiceflow/base-types/build/cjs/models';
-import type { VoiceflowModels } from '@voiceflow/voiceflow-types';
+import type { VoiceflowDiagram, VoiceflowModels } from '@voiceflow/voiceflow-types';
 
 import { API_ENDPOINT, INTENT_ID_LABEL, KEYFILE, PROJECT_NAME } from './constants';
 import { buildTaggedName, extractEntities, parseTaggedName } from './utils';
+
+const HOME_DIAGRAM_ID = '642d959f32a4cc000749e866';
+const FLOW_NAME = `${PROJECT_NAME}/flows/00000000-0000-0000-0000-000000000000`;
 
 async function uploadEntities(
   content: VoiceflowModels.VF,
@@ -114,6 +117,26 @@ async function uploadIntents(
   );
 }
 
+const uploadPages = async (subTopics: VoiceflowDiagram.Diagram[], existingPages: Set<string>, pageClient: PagesClient) =>
+  Promise.all(
+    subTopics.map((subTopic) => {
+      if (existingPages.has(subTopic._id)) {
+        console.log(`skipping sub-topic '${subTopic.name}' that already exists in project, implement merging logic here`);
+
+        return Promise.resolve();
+      }
+
+      console.log('uploading sub-topic', subTopic.name);
+
+      return pageClient.createPage({
+        parent: FLOW_NAME,
+        page: {
+          displayName: buildTaggedName(subTopic.name, subTopic._id),
+        },
+      });
+    })
+  );
+
 async function main() {
   // get first parameter from command line
   const [, , ...args] = process.argv;
@@ -129,6 +152,7 @@ async function main() {
 
   const intentClient = new IntentsClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
   const entityClient = new EntityTypesClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
+  const pageClient = new PagesClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
 
   // extracting intents
 
@@ -149,8 +173,27 @@ async function main() {
   );
   const existingEntities = new Set(Object.keys(remoteEntityIDs));
 
+  const [remotePages] = await pageClient.listPages({ parent: FLOW_NAME });
+
+  // extracting sub-topics
+
+  const subTopicsIDs =
+    content.diagrams[HOME_DIAGRAM_ID].menuItems?.filter((menuItem) => menuItem.type === 'DIAGRAM').map((menuItem) => menuItem.sourceID) ?? [];
+  const subTopics = subTopicsIDs.map((id) => content.diagrams[id]);
+
+  const remotePageIDs: Record<string, string> = Object.fromEntries(
+    remotePages.flatMap((page) => {
+      const parsed = parseTaggedName(page.displayName ?? '');
+      if (!parsed) return [];
+
+      return [[parsed.id, page.name!]];
+    })
+  );
+  const existingPages = new Set(Object.keys(remotePageIDs));
+
   // uploading to DFCX
 
+  await uploadPages(subTopics, existingPages, pageClient);
   await uploadEntities(content, existingEntities, remoteEntityIDs, entityClient);
   await uploadIntents(content, existingIntents, localEntities, remoteEntityIDs, intentClient);
 }
