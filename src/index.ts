@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -117,6 +118,8 @@ async function main() {
   // get first parameter from command line
   const [, , ...args] = process.argv;
 
+  // reading .vf project file
+
   const readFilePath = args[0] || 'project.vf';
   const { name: readFileName } = path.parse(readFilePath);
 
@@ -126,12 +129,13 @@ async function main() {
 
   const intentClient = new IntentsClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
   const entityClient = new EntityTypesClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
-  // const webhookClient = new WebhooksClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
-  // const webhookClient = new v3beta1.WebhooksClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
-  // const environmentClient = new v3beta1.EnvironmentsClient({ keyFilename: KEYFILE, apiEndpoint: API_ENDPOINT });
+
+  // extracting intents
 
   const [remoteIntents] = await intentClient.listIntents({ parent: PROJECT_NAME });
   const existingIntents = new Set(remoteIntents.flatMap((intent) => intent.labels?.[INTENT_ID_LABEL] ?? []));
+
+  // extracting entities
 
   const localEntities = Object.fromEntries(content.version.platformData.slots.map((entity) => [entity.key, entity]));
   const [remoteEntities] = await entityClient.listEntityTypes({ parent: PROJECT_NAME });
@@ -145,15 +149,10 @@ async function main() {
   );
   const existingEntities = new Set(Object.keys(remoteEntityIDs));
 
-  // const [remoteWebhooks] = await webhookClient.listWebhooks({ parent: PROJECT_NAME });
-  // const [remoteEnvironments] = await environmentClient.listEnvironments({ parent: PROJECT_NAME });
+  // uploading to DFCX
 
-  // if (false) {
   await uploadEntities(content, existingEntities, remoteEntityIDs, entityClient);
   await uploadIntents(content, existingIntents, localEntities, remoteEntityIDs, intentClient);
-  // }
-
-  // console.log(remoteEnvironments);
 }
 
 main();
